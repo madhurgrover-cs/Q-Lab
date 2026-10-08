@@ -34,3 +34,55 @@ def cut_value(graph: nx.Graph, bitstring: str) -> int:
         raise ValueError(f"bitstring may only contain '0' and '1', got {bitstring!r}")
 
     return sum(1 for u, v in graph.edges if bitstring[u] != bitstring[v])
+
+
+@dataclass(frozen=True)
+class SampleStats:
+    """Metrics for a method that outputs many sampled bitstrings ("shots").
+
+    ``best_*`` is the single best sample. With enough shots on a small graph
+    even random guessing hits the optimum, so ``expected_cut`` (the average
+    over all shots) is the fairer measure of how good the distribution is.
+    Ratios are relative to ``optimal_cut`` (1.0 = optimal).
+    """
+
+    shots: int
+    counts: dict[str, int]  # bitstring (Phase 1 convention) -> times sampled
+    cut_values: dict[str, int]  # bitstring -> its cut value
+    best_bitstring: str
+    best_cut: int
+    expected_cut: float
+    best_ratio: float
+    expected_ratio: float
+
+
+def summarize_samples(
+    graph: nx.Graph, counts: dict[str, int], optimal_cut: int
+) -> SampleStats:
+    """Compute best/expected cut and approximation ratios from sample counts."""
+    if not counts or any(c < 1 for c in counts.values()):
+        raise ValueError("counts must be non-empty with positive values")
+    if optimal_cut < 0:
+        raise ValueError(f"optimal_cut must be >= 0, got {optimal_cut}")
+
+    cuts = {b: cut_value(graph, b) for b in counts}
+    shots = sum(counts.values())
+    # Ties broken by smallest bitstring so results don't depend on dict order.
+    best = min(cuts, key=lambda b: (-cuts[b], b))
+    expected = sum(counts[b] * cuts[b] for b in counts) / shots
+    if cuts[best] > optimal_cut:
+        raise ValueError(f"a sample cuts {cuts[best]} > optimal_cut={optimal_cut}")
+
+    def ratio(x: float) -> float:
+        return x / optimal_cut if optimal_cut else 1.0
+
+    return SampleStats(
+        shots=shots,
+        counts=dict(counts),
+        cut_values=cuts,
+        best_bitstring=best,
+        best_cut=cuts[best],
+        expected_cut=expected,
+        best_ratio=ratio(cuts[best]),
+        expected_ratio=ratio(expected),
+    )

@@ -11,14 +11,14 @@ advantage.
 | Phase | Contents | Status |
 |---|---|---|
 | 1 | Max-Cut + classical baselines (greedy, simulated annealing, exact brute force) | done |
-| 2 | QAOA | — |
+| 2 | QAOA (simulated with Qiskit Aer) + random-sampling baseline | built, awaiting review |
 | 3 | Noise simulation | — |
 | 4 | Experiment runner | — |
 | 5 | Analysis plots | — |
 | 6 | FastAPI + React web app | — |
 | 7 | Docker deployment | — |
 
-Phase notes: [docs/phase-1-notes.md](docs/phase-1-notes.md)
+Phase notes: [Phase 1](docs/phase-1-notes.md) · [Phase 2](docs/phase-2-notes.md)
 
 ## Setup (Windows, PowerShell)
 
@@ -36,4 +36,5 @@ python -m pip install -e .
 ```powershell
 python -m pytest -q             # tests
 python scripts\demo_phase1.py   # Phase 1 demo
+python scripts\demo_phase2.py   # Phase 2 demo: QAOA vs baselines (~15 s)
 ```
