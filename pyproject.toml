@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qopt"
+version = "0.1.0"
+description = "Q-Opt Lab: QAOA vs classical optimization for Max-Cut"
+requires-python = ">=3.11"
+# Exact pinned versions live in requirements.txt.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

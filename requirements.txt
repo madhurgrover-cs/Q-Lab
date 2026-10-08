@@ -1,0 +1,8 @@
+# Python 3.14 (see CLAUDE.md). Install with:
+#   python -m pip install --only-binary=:all: -r requirements.txt
+networkx==3.7
+numpy==2.5.3
+scipy==1.18.1
+pytest==9.1.1
+qiskit==2.5.2
+qiskit-aer==0.17.2
