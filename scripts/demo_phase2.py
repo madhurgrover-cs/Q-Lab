@@ -20,6 +20,7 @@ GRAPHS = [(6, 0.5, 42), (8, 0.5, 42)]  # (nodes, density, seed)
 SHOTS = 1024
 MAXITER = 100
 SEED = 0
+RESTARTS = [1, 5]  # 1 = the original Phase 2 run; 5 = multi-start optimization
 
 
 def row(name: str, best: int, expected: float, best_ratio: float, exp_ratio: float, extra: str = "") -> str:
@@ -27,7 +28,7 @@ def row(name: str, best: int, expected: float, best_ratio: float, exp_ratio: flo
 
 
 def main() -> None:
-    print(f"shots={SHOTS}, optimizer=COBYLA (maxiter={MAXITER}), seeds={SEED}")
+    print(f"shots={SHOTS}, optimizer=COBYLA (maxiter={MAXITER}), seeds={SEED}, r = num_restarts")
     print("best = best single bitstring; expected = average cut over all shots")
     print("ratio = cut / optimal cut. Single-answer solvers have best = expected.\n")
 
@@ -49,15 +50,18 @@ def main() -> None:
         rand = random_sampling(g, shots=SHOTS, seed=SEED, optimal_cut=opt)
         print(row("random sampling", rand.best_cut, rand.expected_cut, rand.best_ratio, rand.expected_ratio))
 
-        for p in (1, 2):
-            q = run_qaoa(g, p, opt, shots=SHOTS, seed=SEED, simulator_seed=SEED, maxiter=MAXITER)
+        for p, restarts in [(p, r) for r in RESTARTS for p in (1, 2)]:
+            q = run_qaoa(
+                g, p, opt, shots=SHOTS, seed=SEED, simulator_seed=SEED,
+                maxiter=MAXITER, num_restarts=restarts,
+            )
             s = q.samples
             p_opt = sum(c for b, c in s.counts.items() if s.cut_values[b] == opt) / s.shots
             extra = (
                 f"{q.num_evaluations} circuit evals, {q.simulator_runtime_s:.2f}s simulator, "
                 f"P(optimal)={p_opt:.3f}"
             )
-            print(row(f"QAOA p={p}", s.best_cut, s.expected_cut, s.best_ratio, s.expected_ratio, extra))
+            print(row(f"QAOA p={p} r={restarts}", s.best_cut, s.expected_cut, s.best_ratio, s.expected_ratio, extra))
             angles = ", ".join(f"g{i}={gm:.3f} b{i}={bt:.3f}" for i, (gm, bt) in enumerate(zip(q.gammas, q.betas)))
             print(f"  {'':<16} angles: {angles}")
 

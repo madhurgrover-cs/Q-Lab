@@ -120,6 +120,30 @@ def test_qaoa_p1_beats_random_sampling_on_expected_cut(
     assert qaoa.samples.expected_cut > rand.expected_cut
 
 
+# ---------- restarts ----------
+
+def test_one_restart_is_the_default() -> None:
+    g = generate_random_graph(5, 0.6, seed=1)
+    opt = brute_force_max_cut(g).cut_value
+    assert run_qaoa(g, 2, opt, num_restarts=1, **FAST) == run_qaoa(g, 2, opt, **FAST)
+
+
+def test_more_restarts_never_lower_optimizer_score() -> None:
+    g = generate_random_graph(7, 0.5, seed=3)
+    opt = brute_force_max_cut(g).cut_value
+    one = run_qaoa(g, 2, opt, num_restarts=1, **FAST)
+    three = run_qaoa(g, 2, opt, num_restarts=3, **FAST)
+    # Restart 0 is identical in both runs, so the best of 3 can't score lower.
+    assert three.training_expected_cut >= one.training_expected_cut
+    assert three.num_restarts == 3
+    assert three.num_evaluations > one.num_evaluations
+
+
+def test_bad_num_restarts_rejected() -> None:
+    with pytest.raises(ValueError):
+        run_qaoa(nx.cycle_graph(3), 1, 2, num_restarts=0, **FAST)
+
+
 # ---------- random-sampling baseline ----------
 
 def test_random_sampling_is_seeded_and_consistent() -> None:

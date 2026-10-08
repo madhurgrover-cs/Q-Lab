@@ -137,8 +137,66 @@ How to read it:
   `b1 ≈ 0`, meaning the second mixer layer is almost switched off. This is a
   known practical difficulty of QAOA, not a bug. Phase 4 experiments should
   use several seeds and may test smarter starting angles.
+  *(Addressed by the follow-up below.)*
 - Times are single runs of a classical simulator. Don't compare them to
   classical solver times as if they were quantum times.
+
+## Follow-up: multiple restarts (`num_restarts`)
+
+Added after Phase 2 was approved, to address the "p=2 barely beat p=1" issue.
+
+**What it does.** `run_qaoa(..., num_restarts=k)` runs COBYLA from *k*
+different random starting angles (all drawn from `seed`) and keeps the
+angles with the best optimizer score. The final, reported measurement still
+uses fresh shots (`simulator_seed + 1`), exactly as before.
+
+**Why it's legitimate, not result tuning.** Optimizers like COBYLA only walk
+"downhill" from where they start, so a single start can get stuck at a poor
+setting (a *local optimum*). Multi-start is the standard fix. The choice of
+winner uses only the optimizer's own score on the optimization shots,
+never the reported fresh shots or the known optimum. All restarts share the
+same `simulator_seed`, so their scores are directly comparable.
+
+Details:
+- Restart 0 uses the same start as `num_restarts=1`, so the default (1)
+  reproduces Phase 2 exactly, and more restarts can only match or beat its
+  optimizer score (tested).
+- The result records `num_restarts`, `num_evaluations` (summed over all
+  restarts) and `training_expected_cut` (the optimizer's score at the chosen
+  angles).
+- Cost: roughly *k* times more simulator time.
+- COBYLA is unbounded, so angles can come out beyond the [0, π) range
+  (e.g. g1=4.364). That's fine: the circuit repeats with period π, so it's
+  the same circuit as 4.364 − π = 1.223.
+
+**Demo re-run (real output, r = num_restarts):**
+```
+Graph: 6 nodes, 9 edges (density=0.5, seed=42), optimal cut = 7
+  method           best  ratio   expected  ratio   notes
+  random sampling     7  1.000      4.55  0.650
+  QAOA p=1 r=1        7  1.000      5.70  0.814   28 circuit evals, 0.52s simulator, P(optimal)=0.264
+  QAOA p=2 r=1        7  1.000      5.77  0.824   64 circuit evals, 1.19s simulator, P(optimal)=0.287
+  QAOA p=1 r=5        7  1.000      5.70  0.814   158 circuit evals, 2.50s simulator, P(optimal)=0.264
+  QAOA p=2 r=5        7  1.000      5.81  0.830   249 circuit evals, 4.98s simulator, P(optimal)=0.304
+
+Graph: 8 nodes, 16 edges (density=0.5, seed=42), optimal cut = 13
+  method           best  ratio   expected  ratio   notes
+  random sampling    13  1.000      8.01  0.616
+  QAOA p=1 r=1       13  1.000      9.87  0.759   29 circuit evals, 0.78s simulator, P(optimal)=0.076
+  QAOA p=2 r=1       13  1.000      9.92  0.763   47 circuit evals, 1.44s simulator, P(optimal)=0.081
+  QAOA p=1 r=5       13  1.000      9.90  0.761   156 circuit evals, 4.06s simulator, P(optimal)=0.077
+  QAOA p=2 r=5       13  1.000     10.56  0.812   228 circuit evals, 7.15s simulator, P(optimal)=0.149
+(exact, greedy and annealing all optimal; full output from scripts\demo_phase2.py)
+```
+
+What happened:
+- **8 nodes:** with 5 restarts, p=2 clearly beats p=1 (expected ratio 0.812
+  vs 0.761), and P(optimal) roughly doubles (0.077 → 0.149). So the earlier
+  result was an optimizer problem, not a limit of p=2.
+- **6 nodes:** only a small gain (0.830 vs 0.814). p=1 didn't change at all
+  with restarts: its first start was already the best found.
+- The r=1 rows are identical to the original Phase 2 output.
+- QAOA remains below greedy and annealing, which find the optimum.
 
 ## How to run it
 
@@ -147,7 +205,7 @@ From the project root, in PowerShell:
 ```powershell
 .\.venv\Scripts\Activate.ps1      # activate the venv (Python 3.14)
 python -m pip install -e .        # once; makes `import qopt` work
-python -m pytest -q               # all tests (~15 s)
+python -m pytest -q               # all tests (~30 s as of Phase 3)
 python -m pytest tests\test_qaoa.py -q   # just the QAOA tests
-python scripts\demo_phase2.py     # Phase 2 demo (~15 s)
+python scripts\demo_phase2.py     # Phase 2 demo, incl. restarts (~30 s)
 ```
